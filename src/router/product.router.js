@@ -36,7 +36,6 @@ router.get("/public", async (req, res) => {
   if (category) filter.category = category;
   if (minPrice) filter.price = { $gte: Number(minPrice) };
   if (maxPrice) filter.price = { $lte: Number(maxPrice) };
-
   const products = await productModel.aggregate([
     ...(type === "subscription"
       ? [{ $match: { subscription: { $exists: true, $ne: null } } }]
@@ -86,6 +85,104 @@ router.get("/public", async (req, res) => {
                 },
               },
             },
+          },
+        },
+      },
+    },
+    {
+      $replaceRoot: {
+        newRoot: {
+          $mergeObjects: [
+            {
+              _id: "",
+              category: "",
+              name: "",
+              shopName: "",
+              price: 0,
+              image: "",
+              tags: [],
+            },
+            {
+              _id: "$_id",
+              category: "$category",
+              name: "$name",
+              shopName: "$vendor.business.name",
+              price: "$price",
+              image: "$image",
+              tags: "$tags",
+            },
+          ],
+        },
+      },
+    },
+  ]);
+  return res.send(products);
+});
+router.get("/subscription", async (req, res) => {
+  const {
+    community,
+    vendor,
+    type,
+    search,
+    category,
+    sort,
+    minPrice,
+    maxPrice,
+    featured,
+  } = req.query;
+
+  const filter = {
+    $or: [
+      { name: { $regex: search || "", $options: "i" } },
+      { "vendor.business.name": { $regex: search || "", $options: "i" } },
+    ],
+  };
+  if (community) filter["vendor.community"] = new ObjectId(community);
+  if (vendor) filter["vendor._id"] = new ObjectId(vendor);
+  if (category) filter.category = category;
+  if (minPrice) filter.price = { $gte: Number(minPrice) };
+  if (maxPrice) filter.price = { $lte: Number(maxPrice) };
+  const products = await productModel.aggregate([
+    ...(type === "subscription"
+      ? [{ $match: { subscription: { $exists: true, $ne: null } } }]
+      : []),
+    {
+      $lookup: {
+        from: "vendors",
+        localField: "vendor",
+        foreignField: "_id",
+        as: "vendor",
+      },
+    },
+    {
+      $match: filter,
+    },
+    ...(featured ? [{ $limit: 8 }] : []),
+    {
+      $sort: ["ascending", "descending"].includes(sort)
+        ? {
+          name: sort === "ascending" ? 1 : -1,
+        }
+        : { createdAt: 1 },
+    },
+    {
+      $addFields: {
+        tags: {
+          $cond: {
+            if: {
+              $and: [
+                { $in: ["Local Subscriptions", "$deliveryTypes"] },
+                { $ne: ['$subscription', null] }
+              ]
+            },
+            then: ["Subscription"],
+            else: {
+              $cond: {
+                if: { "$eq": [{ "$ifNull": ["$subscription", ""] }, ""] },
+                then: [],
+                else: ["Subscription"],
+              },
+            }
           },
         },
       },
