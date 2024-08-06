@@ -262,7 +262,7 @@ router.get("/shippo/on-board", vendorMiddleware, async (req, res) => {
         companyName: vendor.business.name
       });
     const shippoAccountID = shippoAccount.object_id;
-    // const upsAccount = await createCarrierAccount({ accountID: shippoAccountID, carrier: 'ups', parameters: {} });
+     const upsAccount = await createCarrierAccount({ accountID: shippoAccountID, carrier: 'ups', parameters: {} });
     // console.log(upsAccount);
     const uspsAccount = await createCarrierAccount({ accountID: shippoAccountID, carrier: 'usps', parameters: {} });
     const fedexAccount = await createCarrierAccount({ accountID: shippoAccountID, carrier: 'fedex', parameters: {} });
@@ -270,7 +270,7 @@ router.get("/shippo/on-board", vendorMiddleware, async (req, res) => {
 
     vendor.shippoAccountID = shippoAccountID;
     vendor.shippoCarriers = {
-      // ups: upsAccount.objectId,
+      ups: upsAccount.objectId,
       usps: uspsAccount.object_id,
       fedex: fedexAccount.object_id
     };
